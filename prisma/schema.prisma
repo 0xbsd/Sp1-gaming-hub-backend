@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  address       String         @unique
+  username      String?        @unique
+  email         String?
+  avatar        String?
+  level         Int            @default(1)
+  experience    Int            @default(0)
+  zkPoints      Int            @default(0)
+  
+  sessions      GameSession[]
+  proofs        Proof[]
+  achievements  UserAchievement[]
+  tournaments   TournamentParticipant[]
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  @@index([zkPoints])
+}
+
+model Game {
+  id            String         @id @default(uuid())
+  name          String
+  slug          String         @unique
+  description   String
+  difficulty    String
+  category      String
+  iconUrl       String?
+  isActive      Boolean        @default(true)
+  settings      Json           @default("{}")
+  
+  sessions      GameSession[]
+  proofs        Proof[]
+  tournaments   Tournament[]
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  @@index([slug])
+  @@index([category])
+}
+
+model GameSession {
+  id            String         @id @default(uuid())
+  gameId        String
+  userId        String
+  status        String         @default("active")
+  score         Int            @default(0)
+  timeElapsed   Int            @default(0)
+  settings      Json?
+  proofData     Json?
+  
+  game          Game           @relation(fields: [gameId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  proofs        Proof[]
+  
+  startedAt     DateTime       @default(now())
+  completedAt   DateTime?
+  
+  @@index([gameId, userId])
+  @@index([status])
+}
+
+model Proof {
+  id                  String         @id @default(uuid())
+  userId              String
+  gameId              String
+  sessionId           String
+  proofType           String
+  proofData           Json
+  verificationStatus  String         @default("pending")
+  generationTime      Int
+  gasUsed             BigInt?
+  
+  user                User           @relation(fields: [userId], references: [id])
+  game                Game           @relation(fields: [gameId], references: [id])
+  session             GameSession    @relation(fields: [sessionId], references: [id])
+  
+  createdAt           DateTime       @default(now())
+  verifiedAt          DateTime?
+  
+  @@index([userId])
+  @@index([verificationStatus])
+}
+
+model Achievement {
+  id            String         @id @default(uuid())
+  name          String
+  description   String
+  iconUrl       String
+  rarity        String
+  requirements  Json
+  zkPoints      Int            @default(0)
+  
+  users         UserAchievement[]
+  
+  createdAt     DateTime       @default(now())
+}
+
+model UserAchievement {
+  userId        String
+  achievementId String
+  
+  user          User           @relation(fields: [userId], references: [id])
+  achievement   Achievement    @relation(fields: [achievementId], references: [id])
+  
+  unlockedAt    DateTime       @default(now())
+  
+  @@id([userId, achievementId])
+}
+
+model Tournament {
+  id            String         @id @default(uuid())
+  name          String
+  gameId        String
+  status        String         @default("upcoming")
+  entryFee      BigInt?
+  prizePool     BigInt         @default(0)
+  maxParticipants Int
+  rules         Json
+  
+  game          Game           @relation(fields: [gameId], references: [id])
+  participants  TournamentParticipant[]
+  
+  startTime     DateTime
+  endTime       DateTime
+  createdAt     DateTime       @default(now())
+  
+  @@index([status])
+  @@index([startTime])
+}
+
+model TournamentParticipant {
+  tournamentId  String
+  userId        String
+  rank          Int?
+  score         Int            @default(0)
+  
+  tournament    Tournament     @relation(fields: [tournamentId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  
+  joinedAt      DateTime       @default(now())
+  
+  @@id([tournamentId, userId])
+}
